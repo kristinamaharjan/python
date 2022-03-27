@@ -4,56 +4,69 @@ import demoji
 import os
 import csv
 
-fields = ['url','review']
+fields = ['url', 'review', 'rating']
 
-#change the driver details here replace it with your line of chrome driver
-driver = webdriver.Chrome("C:\\Users\\Legion\\PycharmProjects\\pythonProject\\chromedriver.exe")
+# change the driver details here replace it with your line of chrome driver
+driver = webdriver.Chrome("D:\\Dev\\ProjectKristina\\python\\chromedriver.exe")
 
 # opening the file containing data of URL for extraction
 dir = os.getcwd()
-fullpath = os.path.join(dir,"productsurl")
+fullpath = os.path.join(dir, "productsurl")
 f = open(fullpath, "r")
 final_x = f.readlines()
-print(final_x)
+# print(final_x)
 maindata = []
 
 # extracting the individual url from the file using the loop
 for url in final_x:
 
-    #creating try catch block fro error checking
+    # creating try catch block fro error checking
     try:
-        #creating a data list
-        #using driver to open the individual url
+        # creating a data list
+        # using driver to open the individual url
         driver.get(url)
-        #adding a pause
+        driver.maximize_window()
+        # adding a pause
         time.sleep(3)
 
-        #scrolling
+        # scrolling
         driver.execute_script("window.scrollTo(0, 600);")
         time.sleep(2)
         driver.execute_script("window.scrollTo(0, 800);")
 
+        NO_OF_PAGES = driver.find_element_by_xpath(
+            '//*[@id="module_product_review"]/div/div/div[3]/div[2]/div/div/button[last()]').text
+        print('no of pages: '+str(NO_OF_PAGES))
 
-        #using xpath to get the desired html block i.e getting the class content under class item and extracting its text and adding in list
-        for x in driver.find_elements_by_xpath(
-                '//*[contains(concat( " ", @class, " " ), concat( " ", "item", " " ))]//*[contains(concat( " ", @class, " " ), concat( " ", "content", " " ))]'):
-            data = []
-            data.append(url.replace("\n",''))
-            texttoadd = x.text
+        nextPageButton = driver.find_element_by_xpath(
+            '//*[@id="module_product_review"]/div/div/div[3]/div[2]/div/button[last()]')
+        for pageNo in range(int(NO_OF_PAGES)):
+            time.sleep(3)
+            # using xpath to get the desired html block i.e getting the class content under class item and extracting its text and adding in list
+            for count, x in enumerate(driver.find_elements_by_xpath(
+                    '//*[contains(concat( " ", @class, " " ), concat( " ", "item", " " ))]//*[contains(concat( " ", @class, " " ), concat( " ", "content", " " ))]'), 1):
+                data = []
+                texttoadd = x.text
 
-            #filtering emoji
-            textfilter =demoji.replace(texttoadd,"")
-            data.append(str(textfilter).replace("\n",""))
-            maindata.append(data)
+                # filtering emoji
+                textfilter = demoji.replace(texttoadd, "")
 
+                # add to main data if length of review is greater than zero
+                if (len(textfilter) > 0):
+                    data.append(url.replace('\n', ''))
+                    data.append(str(textfilter).replace("\n", ""))
+                    # using xpath to select the star image (those with a specific color) to then calculate the count of stars i.e. rating given in the review between 1 and 5
+                    noOfStars = len(driver.find_elements_by_xpath(
+                        '//*[@id="module_product_review"]/div/div/div[3]/div[1]/div['+str(count)+']/div[1]/div/img[@src=\'//laz-img-cdn.alicdn.com/tfs/TB19ZvEgfDH8KJjy1XcXXcpdXXa-64-64.png\']'))
+                    data.append(noOfStars)
+                    maindata.append(data)
+            nextPageButton.click()
 
     except Exception as e:
         print("Errror"+str(e))
 
-print(maindata)
-
-#writing in csv file
-with open('data.csv','w', newline='') as f:
+# writing in csv file
+with open('dataWithRatings.csv', 'w', newline='') as f:
     write = csv.writer(f)
     write.writerow(fields)
     write.writerows(maindata)
